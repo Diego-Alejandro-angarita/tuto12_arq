@@ -50,4 +50,4 @@ jobs:
 
     - name: Docker Push 
 
-      run: docker push anagritadiego/express-ramdomquotes 
+      run: docker push anagritadiego/express-ramdomquotes
