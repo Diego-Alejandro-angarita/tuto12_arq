@@ -1,6 +1,8 @@
 const express = require('express')
+const cors = require('cors')
 const os = require('os')
 const products = require('./products')
+const { productSvg } = require('./images')
 
 const app = express()
 const port = process.env.PORT || 80
@@ -8,6 +10,9 @@ const port = process.env.PORT || 80
 // Detras del balanceador/proxy, usar el host y protocolo originales para
 // armar los enlaces absolutos de cada producto.
 app.set('trust proxy', true)
+
+// CORS: permite que paginas web de cualquier dominio consuman la API con fetch().
+app.use(cors())
 
 const phrases = [
   'Get ready to be inspired…',
@@ -27,10 +32,15 @@ function baseUrl(req) {
   return `${req.protocol}://${req.get('host')}`
 }
 
+function imageUrl(product, req) {
+  return product.imagen || `${baseUrl(req)}/images/${product.id}.svg`
+}
+
 function toJson(product, req) {
   return {
     ...product,
     moneda: 'COP',
+    imagen: imageUrl(product, req),
     url: `${baseUrl(req)}/products/${product.id}`,
   }
 }
@@ -71,6 +81,16 @@ app.get('/api/products/:id', (req, res) => {
   res.json(toJson(product, req))
 })
 
+// Imagen de cada producto (campo "imagen" del JSON).
+app.get('/images/:id.svg', (req, res) => {
+  const product = findProduct(req.params.id)
+  if (!product) {
+    return res.status(404).send('Imagen no encontrada')
+  }
+  res.set('Cache-Control', 'public, max-age=86400')
+  res.type('image/svg+xml').send(productSvg(product))
+})
+
 // Visualizacion de un producto (destino del campo "url" del JSON).
 app.get('/products/:id', (req, res) => {
   const product = findProduct(req.params.id)
@@ -93,10 +113,12 @@ app.get('/products/:id', (req, res) => {
     .card { border: 1px solid #ddd; border-radius: 8px; padding: 24px; }
     .precio { font-size: 1.5rem; font-weight: bold; }
     .meta { color: #666; }
+    img { width: 100%; max-width: 360px; display: block; margin: 0 auto 16px; border-radius: 8px; }
   </style>
 </head>
 <body>
   <div class="card">
+    <img src="${escapeHtml(imageUrl(product, req))}" alt="${p.nombre}">
     <p class="meta">${p.categoria}</p>
     <h1>${p.nombre}</h1>
     <p>${p.descripcion}</p>
